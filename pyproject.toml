@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "langconnect-agent"
+version = "0.1.0"
+description = "Phase 1 skeleton: an offline-capable LangGraph RAG agent (StubRetriever + mock LLM) with a seam to real langconnect-v2 pgvector."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Wayfinder" }]
+dependencies = [
+    "langgraph",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+anthropic = ["langchain-anthropic", "langchain-core"]
+openai = ["langchain-openai", "langchain-core"]
+pgvector = ["psycopg[binary]"]
+web = ["tavily-python"]
+langsmith = ["langsmith"]
+ragas = ["ragas"]
+test = ["pytest"]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
