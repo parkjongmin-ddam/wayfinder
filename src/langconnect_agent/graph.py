@@ -1,15 +1,16 @@
-"""Phase 3 LangGraph assembly.
+"""LangGraph assembly (routing + fallback + verification harness).
 
 Topology (route branches to retrieve OR web_search; grade may fall back once to
-web_search — 1-hop cap — before answering)::
+web_search; verify may regenerate the answer once — both 1-hop caps)::
 
-    START -> route -> retrieve|web_search -> grade -> answer -> END
-                                              grade -> web_search (fallback, 1-hop)
+    START -> route -> retrieve|web_search -> grade -> answer -> verify -> END
+                                              grade  -> web_search (fallback, 1-hop)
+                                              verify -> answer     (regen, 1-hop)
 
 ``build_graph()`` wires the nodes with offline defaults (StubRetriever,
-StubWebSearcher, MockRouterLLM, MockGrader, mock answer LLM), so the compiled
-graph runs with no database, no web API, and no keys. A module-level
-``graph = build_graph()`` is exposed for ``langgraph dev`` and
+StubWebSearcher, MockRouterLLM, MockGrader, mock answer LLM, MockFaithfulness),
+so the compiled graph runs with no database, no web API, and no keys. A
+module-level ``graph = build_graph()`` is exposed for ``langgraph dev`` and
 ``from langconnect_agent.graph import graph``.
 """
 
@@ -23,7 +24,14 @@ from langgraph.graph import END, START, StateGraph
 from langconnect_agent.config import Config, get_config
 from langconnect_agent.grading import Grader, get_grader
 from langconnect_agent.llm import get_llm, get_router_llm
-from langconnect_agent.nodes import answer, grade, retrieve, route, web_search
+from langconnect_agent.nodes import (
+    answer,
+    grade,
+    retrieve,
+    route,
+    verify,
+    web_search,
+)
 from langconnect_agent.retrievers import Retriever, get_retriever
 from langconnect_agent.state import AgentState
 from langconnect_agent.web import WebSearcher, get_web_searcher
@@ -39,6 +47,11 @@ def _after_grade(state: AgentState) -> str:
     return "web_search" if state.get("needs_fallback") else "answer"
 
 
+def _after_verify(state: AgentState) -> str:
+    """Conditional-edge selector: regenerate the answer, else finish."""
+    return "answer" if state.get("needs_regen") else "end"
+
+
 def build_graph(
     *,
     retriever: Optional[Retriever] = None,
@@ -46,6 +59,7 @@ def build_graph(
     router_llm: Any = None,
     grader: Optional[Grader] = None,
     llm: Any = None,
+    faithfulness: Any = None,
     config: Optional[Config] = None,
 ) -> Any:
     """Build and compile the Phase 3 agent graph.
@@ -70,6 +84,11 @@ def build_graph(
     router_llm = router_llm if router_llm is not None else get_router_llm(config)
     grader = grader or get_grader(config)
     llm = llm if llm is not None else get_llm(config)
+    if faithfulness is None:
+        # Lazy import avoids an evaluation<->graph import cycle at module load.
+        from langconnect_agent.evaluation import get_faithfulness
+
+        faithfulness = get_faithfulness(config)
 
     builder = StateGraph(AgentState)
     builder.add_node("route", partial(route, router_llm=router_llm, cfg=config))
@@ -81,6 +100,9 @@ def build_graph(
     )
     builder.add_node("grade", partial(grade, grader=grader, cfg=config))
     builder.add_node("answer", partial(answer, llm=llm, cfg=config))
+    builder.add_node(
+        "verify", partial(verify, metric=faithfulness, cfg=config)
+    )
 
     builder.add_edge(START, "route")
     builder.add_conditional_edges(
@@ -95,7 +117,12 @@ def build_graph(
         _after_grade,
         {"web_search": "web_search", "answer": "answer"},
     )
-    builder.add_edge("answer", END)
+    builder.add_edge("answer", "verify")
+    builder.add_conditional_edges(
+        "verify",
+        _after_verify,
+        {"answer": "answer", "end": END},
+    )
 
     return builder.compile()
 

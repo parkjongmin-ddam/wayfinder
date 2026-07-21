@@ -7,11 +7,12 @@ pgvector store, and Tavily web search swap in behind clean seams with **no node 
 
 Built in staged phases, each with a passing gate (see `BUILD_SPEC.md`).
 
-## Topology (Phase 3)
+## Topology
 
 ```
-START -> route -> retrieve | web_search -> grade -> answer -> END
-                                            grade -> web_search   (1-hop fallback)
+START -> route -> retrieve | web_search -> grade -> answer -> verify -> END
+                                            grade  -> web_search   (1-hop fallback)
+                                            verify -> answer       (1-hop regen)
 ```
 
 - **route** — an LLM classifies the query into one of three routes; off-schema/unparseable
@@ -25,11 +26,17 @@ START -> route -> retrieve | web_search -> grade -> answer -> END
   back **once** to the web path (1-hop cap), then answers.
 - **answer** — synthesizes a grounded answer. Web excerpts are isolated as **untrusted data**
   (prompt-injection isolation) and cited by URL (BUILD_SPEC §5.1).
+- **verify** — post-answer **faithfulness gate** (verification harness). Scores how well the
+  answer is grounded in the retrieved context; if it is below threshold, regenerates **once**
+  with a stricter grounding prompt (1-hop cap), else finishes. Metric is pluggable: the
+  offline lexical proxy by default, real RAGAS via `FAITHFULNESS=ragas`. The threshold is
+  calibrated low (`0.35`) for the lexical proxy — which underestimates paraphrased answers —
+  so it catches gross hallucination without penalizing paraphrase.
 
 Every run emits a one-line **decision trace** (BUILD_SPEC §5.4), e.g.:
 
 ```
-query='What is the capital of France?' | route=A(semantic) | rationale='classified as semantic' | grade=0.85 | fallback=web
+query='What is the capital of France?' | route=A(semantic) | rationale='classified as semantic' | grade=0.85 | fallback=web | faith=0.62
 ```
 
 ## Install & run
@@ -37,7 +44,7 @@ query='What is the capital of France?' | route=A(semantic) | rationale='classifi
 ```sh
 pip install -e ".[test]"
 cp .env.example .env
-pytest -q                     # 49 tests: routing + fallback + isolation + seam mapping
+pytest -q                     # 53 tests: routing + fallback + verify + isolation + seams
 python scripts/demo_trace.py  # print the decision trace for one query per route
 ```
 

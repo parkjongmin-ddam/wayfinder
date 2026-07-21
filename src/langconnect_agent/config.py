@@ -31,6 +31,14 @@ class Config:
         max_fallbacks: maximum number of fallback hops (Phase 3, 1-hop cap).
         web_provider: route C searcher — "auto" (Tavily if TAVILY_API_KEY set,
             else stub), "stub", or "tavily".
+        faithfulness_threshold: minimum post-answer faithfulness to accept an
+            answer; below it the verify node regenerates once (verification
+            harness). Calibrated LOW for the default lexical proxy
+            (``MockFaithfulness``), which underestimates grounding of
+            paraphrased answers — it should catch gross hallucination, not
+            penalize paraphrase. Raise it when using RAGAS (``FAITHFULNESS=ragas``).
+        max_verify_retries: max answer regenerations from the faithfulness gate
+            (1-hop cap, mirrors ``max_fallbacks``).
         retriever_provider: routes A/B retriever — "auto" (real pgvector
             ``LangConnectRetriever`` if ``PGVECTOR_CONNINFO`` is set, else the
             offline ``StubRetriever``), "stub", or "langconnect".
@@ -46,6 +54,8 @@ class Config:
     grade_threshold: float = 0.5
     max_fallbacks: int = 1
     web_provider: str = "auto"  # auto | stub | tavily (route C searcher)
+    faithfulness_threshold: float = 0.35  # low: lexical proxy underestimates
+    max_verify_retries: int = 1  # 1-hop answer-regeneration cap
     retriever_provider: str = "auto"  # auto | stub | langconnect (routes A/B)
     embedding_model: str = "text-embedding-3-small"
 
@@ -61,6 +71,10 @@ class Config:
             grade_threshold=float(os.getenv("GRADE_THRESHOLD", "0.5")),
             max_fallbacks=int(os.getenv("MAX_FALLBACKS", "1")),
             web_provider=os.getenv("WEB_PROVIDER", "auto"),
+            faithfulness_threshold=float(
+                os.getenv("FAITHFULNESS_THRESHOLD", "0.35")
+            ),
+            max_verify_retries=int(os.getenv("MAX_VERIFY_RETRIES", "1")),
             retriever_provider=os.getenv("RETRIEVER_PROVIDER", "auto"),
             embedding_model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
         )

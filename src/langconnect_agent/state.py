@@ -34,3 +34,8 @@ class AgentState(TypedDict, total=False):
     fallback_count: int
     fallbacks_used: list[str]
     needs_fallback: bool
+    # Phase 2 verification harness: post-answer faithfulness gate + regen loop.
+    faithfulness: float
+    faithfulness_reason: str
+    needs_regen: bool
+    regen_count: int

@@ -38,10 +38,15 @@ def build_trace(state: AgentState) -> str:
     fallbacks = state.get("fallbacks_used", []) or []
     fallback_str = "->".join(fallbacks) if fallbacks else "no"
 
+    faith = state.get("faithfulness", None)  # Phase 2 verification harness
+    faith_str = "n/a" if faith is None else f"{float(faith):.2f}"
+    regens = int(state.get("regen_count", 0) or 0)
+    faith_suffix = f" (regen x{regens})" if regens else ""
+
     return (
         f"query='{_clip(query)}' | route={letter}({route}) | "
         f"rationale='{_clip(rationale)}' | grade={grade_str} | "
-        f"fallback={fallback_str}"
+        f"fallback={fallback_str} | faith={faith_str}{faith_suffix}"
     )
 
 

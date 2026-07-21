@@ -18,16 +18,21 @@ def test_graph_topology_route_retrieve_grade_answer():
     drawable = compiled.get_graph()
 
     node_ids = set(drawable.nodes)
-    for expected in ("route", "retrieve", "web_search", "grade", "answer"):
+    for expected in (
+        "route", "retrieve", "web_search", "grade", "answer", "verify"
+    ):
         assert expected in node_ids, f"missing node {expected!r}"
 
     edges = {(e.source, e.target) for e in drawable.edges}
     # START enters the router; both retrieval paths converge on grade; grade
-    # feeds answer (and can loop back to web_search for the 1-hop fallback).
+    # feeds answer (and can loop back to web_search for the 1-hop fallback);
+    # answer feeds the verify gate, which ends (or loops back to answer once).
     assert (START, "route") in edges
     assert ("retrieve", "grade") in edges
     assert ("web_search", "grade") in edges
-    assert ("answer", END) in edges
+    assert ("answer", "verify") in edges
+    assert ("verify", END) in edges
+    assert ("verify", "answer") in edges  # 1-hop regeneration loop
 
 
 def test_graph_invoke_returns_non_empty_answer():
