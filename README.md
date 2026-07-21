@@ -44,7 +44,7 @@ query='What is the capital of France?' | route=A(semantic) | rationale='classifi
 ```sh
 pip install -e ".[test]"
 cp .env.example .env
-pytest -q                     # 56 tests: routing + fallback + verify + mcp + isolation + seams
+pytest -q                     # 64 tests: routing + fallback + verify + mcp + orchestrator + seams
 python scripts/demo_trace.py  # print the decision trace for one query per route
 ```
 
@@ -149,6 +149,31 @@ Claude Desktop (`claude_desktop_config.json`):
 Verified end-to-end over stdio: an MCP client `initialize`s, lists `ask_wayfinder`, and calls it
 to get the routed, verified answer with citations — the same graph, now callable as a tool.
 
+## Multi-agent orchestration (optional)
+
+An **additive** orchestrator graph (`build_orchestrator()`) runs a **supervisor** over three
+specialized sub-agents — the single-agent `graph.py` above is unchanged and still backs MCP,
+eval, and most tests. Topology:
+
+```
+START -> route -> supervisor --(select)--> retrieval_agent -> supervisor
+                                         -> web_agent        -> supervisor
+                                         -> synthesis_agent  -> END
+```
+
+- **retrieval_agent** — rewrites the query into a few reformulations, runs a **multi-query**
+  vector search, merges + dedups, and **self-checks** grounding sufficiency.
+- **web_agent** — route-C web search with prompt-injection isolation.
+- **synthesis_agent** — the only strong-model (Opus) step: synthesizes over the **accumulated**
+  internal + web context and verifies faithfulness (1-hop regen).
+- **supervisor** — an explainable **policy** controller (with an LLM-planner seam) that picks
+  the next sub-agent from the route + the retrieval self-check; a `max_agent_steps` cap plus the
+  policy guarantee termination. Sub-agents use the fast model; only synthesis uses the strong one.
+
+Enable it as the served agent with `AGENT_MODE=multi` (the MCP server then exposes the
+orchestrator behind the same `ask_wayfinder` tool), or run `python scripts/demo_orchestrator.py`.
+The decision trace gains an `agents=retrieval_agent->web_agent->synthesis_agent` segment.
+
 ## Layout
 
 ```
@@ -166,9 +191,13 @@ src/langconnect_agent/
   observability.py  LangSmith helpers
   evaluation.py     fixed eval set, faithfulness metric, metrics report (Phase 4)
   mcp_server.py     FastMCP server exposing ask_wayfinder (run_agent / create_server)
+  agents.py         retrieval / web / synthesis sub-agents + query rewriter (Step 4)
+  supervisor.py     supervisor policy controller (Step 4)
+  orchestrator.py   build_orchestrator() multi-agent graph (Step 4)
 scripts/
   demo_trace.py     print the decision trace per route
+  demo_orchestrator.py  run the multi-agent orchestrator per path
   run_eval.py       offline metrics dashboard (routing acc / fallback / faithfulness)
   ingest.py         chunk + embed ./corpus into pgvector (Phase 1 parity)
-tests/              routing, fallback, verify, mcp, isolation, pgvector-mapping, eval
+tests/              routing, fallback, verify, mcp, orchestrator, isolation, pgvector, eval
 ```

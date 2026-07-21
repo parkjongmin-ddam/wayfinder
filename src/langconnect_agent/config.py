@@ -58,6 +58,10 @@ class Config:
     max_verify_retries: int = 1  # 1-hop answer-regeneration cap
     retriever_provider: str = "auto"  # auto | stub | langconnect (routes A/B)
     embedding_model: str = "text-embedding-3-small"
+    # Step 4 multi-agent orchestration.
+    agent_mode: str = "single"  # single (graph.py) | multi (orchestrator.py)
+    max_agent_steps: int = 4    # supervisor step cap (guarantees termination)
+    rewrite_count: int = 2      # query reformulations the retrieval agent adds
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -77,6 +81,9 @@ class Config:
             max_verify_retries=int(os.getenv("MAX_VERIFY_RETRIES", "1")),
             retriever_provider=os.getenv("RETRIEVER_PROVIDER", "auto"),
             embedding_model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
+            agent_mode=os.getenv("AGENT_MODE", "single"),
+            max_agent_steps=int(os.getenv("MAX_AGENT_STEPS", "4")),
+            rewrite_count=int(os.getenv("REWRITE_COUNT", "2")),
         )
 
 

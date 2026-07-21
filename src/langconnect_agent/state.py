@@ -39,3 +39,9 @@ class AgentState(TypedDict, total=False):
     faithfulness_reason: str
     needs_regen: bool
     regen_count: int
+    # Step 4 multi-agent orchestration (separate orchestrator graph).
+    next_agent: str          # supervisor's chosen next sub-agent
+    agent_steps: int         # supervisor step counter (termination cap)
+    agent_log: list[str]     # ordered record of sub-agents invoked
+    rewrites: list[str]      # query reformulations from the retrieval agent
+    retrieval_sufficient: bool  # retrieval agent's self-check verdict

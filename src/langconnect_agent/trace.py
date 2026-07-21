@@ -43,11 +43,16 @@ def build_trace(state: AgentState) -> str:
     regens = int(state.get("regen_count", 0) or 0)
     faith_suffix = f" (regen x{regens})" if regens else ""
 
-    return (
+    line = (
         f"query='{_clip(query)}' | route={letter}({route}) | "
         f"rationale='{_clip(rationale)}' | grade={grade_str} | "
         f"fallback={fallback_str} | faith={faith_str}{faith_suffix}"
     )
+
+    agents = state.get("agent_log", []) or []  # Step 4 orchestrator only
+    if agents:
+        line += f" | agents={'->'.join(agents)}"
+    return line
 
 
 def print_trace(state: AgentState, **kwargs: Any) -> str:

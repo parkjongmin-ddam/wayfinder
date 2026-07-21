@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from langconnect_agent.config import get_config
 from langconnect_agent.env import load_env
 from langconnect_agent.graph import build_graph
 
@@ -69,7 +70,13 @@ def create_server(graph: Any = None, *, name: str = "wayfinder") -> Any:
 
     if graph is None:
         load_env()
-        graph = build_graph()
+        config = get_config()
+        if config.agent_mode == "multi":
+            from langconnect_agent.orchestrator import build_orchestrator
+
+            graph = build_orchestrator(config=config)
+        else:
+            graph = build_graph(config=config)
 
     mcp = FastMCP(name)
 
