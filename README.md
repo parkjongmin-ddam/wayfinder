@@ -44,7 +44,7 @@ query='What is the capital of France?' | route=A(semantic) | rationale='classifi
 ```sh
 pip install -e ".[test]"
 cp .env.example .env
-pytest -q                     # 53 tests: routing + fallback + verify + isolation + seams
+pytest -q                     # 56 tests: routing + fallback + verify + mcp + isolation + seams
 python scripts/demo_trace.py  # print the decision trace for one query per route
 ```
 
@@ -127,6 +127,28 @@ LangGraph auto-instruments every node as a LangSmith span. Enable with
 `observability.run_with_trace(graph, inputs, ...)` tags runs with queryable metadata and is a
 transparent pass-through when tracing is off.
 
+## MCP server (expose the agent)
+
+The whole agent is exposed as a single MCP tool, `ask_wayfinder(query)`, so any MCP client
+(Claude Desktop, an agent-builder platform) can call it. `run_agent(graph, query)` shapes the
+result (answer + route + faithfulness + fallbacks + citations + trace); `create_server()` wraps
+it in a FastMCP server. `pip install -e ".[mcp]"`.
+
+```sh
+python -m langconnect_agent.mcp_server     # serve over stdio
+# or the console script:
+wayfinder-mcp
+```
+
+Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{"mcpServers": {"wayfinder": {"command": "wayfinder-mcp"}}}
+```
+
+Verified end-to-end over stdio: an MCP client `initialize`s, lists `ask_wayfinder`, and calls it
+to get the routed, verified answer with citations — the same graph, now callable as a tool.
+
 ## Layout
 
 ```
@@ -138,13 +160,15 @@ src/langconnect_agent/
   router.py         route classification, schema-safe parse, MockRouterLLM
   grading.py        Grader, MockGrader, LLMGrader (RAGAS-style sufficiency)
   llm.py            get_llm() / get_router_llm() factories, MockLLM
-  nodes.py          route, retrieve, web_search, grade, answer
+  nodes.py          route, retrieve, web_search, grade, answer, verify
   graph.py          build_graph(), module-level graph
   trace.py          one-line decision trace (§5.4)
   observability.py  LangSmith helpers
   evaluation.py     fixed eval set, faithfulness metric, metrics report (Phase 4)
+  mcp_server.py     FastMCP server exposing ask_wayfinder (run_agent / create_server)
 scripts/
   demo_trace.py     print the decision trace per route
   run_eval.py       offline metrics dashboard (routing acc / fallback / faithfulness)
-tests/              routing, fallback, isolation, pgvector-mapping, observability, evaluation
+  ingest.py         chunk + embed ./corpus into pgvector (Phase 1 parity)
+tests/              routing, fallback, verify, mcp, isolation, pgvector-mapping, eval
 ```

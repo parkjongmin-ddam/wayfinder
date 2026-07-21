@@ -22,7 +22,11 @@ pgvector = ["psycopg[binary]"]
 web = ["tavily-python"]
 langsmith = ["langsmith"]
 ragas = ["ragas"]
+mcp = ["mcp"]
 test = ["pytest"]
+
+[project.scripts]
+wayfinder-mcp = "langconnect_agent.mcp_server:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
