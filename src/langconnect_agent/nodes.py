@@ -27,7 +27,11 @@ from langconnect_agent.llm import get_llm, get_router_llm
 from langconnect_agent.retrievers import Document, Retriever, StubRetriever
 from langconnect_agent.router import build_router_prompt, parse_route
 from langconnect_agent.state import AgentState
-from langconnect_agent.trace import build_trace
+from langconnect_agent.trace import (
+    build_trace,
+    chat_message_content,
+    query_from_messages,
+)
 from langconnect_agent.web import StubWebSearcher, WebSearcher
 
 
@@ -55,7 +59,8 @@ def route(
     cfg = cfg or get_config()
     router_llm = router_llm if router_llm is not None else get_router_llm(cfg)
 
-    query = state.get("query", "") or ""
+    # Accept either a direct ``query`` or a chat ``messages`` list (agent-chat-ui).
+    query = state.get("query", "") or query_from_messages(state)
     result = router_llm.invoke(build_router_prompt(query))
     text = getattr(result, "content", result)
     parsed = parse_route(text)
@@ -70,7 +75,7 @@ def route(
         selected = parsed
         rationale = f"classified as {selected}"
 
-    return {"route": selected, "router_rationale": rationale}
+    return {"query": query, "route": selected, "router_rationale": rationale}
 
 
 def retrieve(
@@ -313,4 +318,9 @@ def verify(
     if needs:
         out["regen_count"] = regen_count + 1
     out["trace"] = build_trace({**state, **out})
+    if not needs:  # terminal: surface the answer in the chat channel with a badge
+        from langchain_core.messages import AIMessage
+
+        content = chat_message_content({**state, **out}, answer_text)
+        out["messages"] = [AIMessage(content=content)]
     return out

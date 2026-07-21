@@ -60,3 +60,43 @@ def print_trace(state: AgentState, **kwargs: Any) -> str:
     line = build_trace(state)
     print(line, **kwargs)
     return line
+
+
+# --- chat / agent-chat-ui adapters (Phase 6) ------------------------------
+def query_from_messages(state: AgentState) -> str:
+    """Recover the query text from the last human message, if any.
+
+    Lets a chat client (agent-chat-ui) drive the graph with ``{"messages": [...]}``
+    instead of ``{"query": ...}``. Returns "" when there is no usable message.
+    """
+    messages = state.get("messages") or []
+    for msg in reversed(messages):
+        role = getattr(msg, "type", None) or (
+            msg.get("role") if isinstance(msg, dict) else None
+        )
+        if role in ("human", "user"):
+            content = getattr(msg, "content", None)
+            if content is None and isinstance(msg, dict):
+                content = msg.get("content")
+            return str(content or "")
+    return ""
+
+
+def chat_badge(state: AgentState) -> str:
+    """Compact route / fallback / faithfulness badge for the chat UI."""
+    route = state.get("route", "") or "?"
+    letter = ROUTE_LETTERS.get(route, "?")
+    fallbacks = state.get("fallbacks_used", []) or []
+    fb = "->".join(fallbacks) if fallbacks else "no"
+    faith = state.get("faithfulness", None)
+    faith_str = "n/a" if faith is None else f"{float(faith):.2f}"
+    parts = [f"route {letter}({route})", f"fallback {fb}", f"faith {faith_str}"]
+    agents = state.get("agent_log", []) or []
+    if agents:
+        parts.append("agents " + "->".join(agents))
+    return "  ·  ".join(parts)
+
+
+def chat_message_content(state: AgentState, answer: str) -> str:
+    """Render the final answer with a leading route/fallback badge for the UI."""
+    return f"> 🧭 {chat_badge(state)}\n\n{answer}"

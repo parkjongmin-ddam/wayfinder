@@ -253,4 +253,11 @@ def synthesis_agent(
         "agent_log": log,
     }
     partial["trace"] = build_trace({**state, **partial})
+    # Terminal: surface the answer in the chat channel with a route badge.
+    from langchain_core.messages import AIMessage
+
+    from langconnect_agent.trace import chat_message_content
+
+    content = chat_message_content({**state, **partial}, answer)
+    partial["messages"] = [AIMessage(content=content)]
     return partial

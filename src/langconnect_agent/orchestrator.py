@@ -110,3 +110,8 @@ def build_orchestrator(
     builder.add_edge(SYNTHESIS, END)
 
     return builder.compile()
+
+
+# Module-level compiled orchestrator for `langgraph dev` / LangGraph Platform
+# and `from langconnect_agent.orchestrator import orchestrator`.
+orchestrator = build_orchestrator()

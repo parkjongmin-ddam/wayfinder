@@ -7,7 +7,9 @@ and ``answer``.
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Annotated, Any, TypedDict
+
+from langgraph.graph.message import add_messages
 
 
 class AgentState(TypedDict, total=False):
@@ -23,6 +25,10 @@ class AgentState(TypedDict, total=False):
     accuracy stays measurable independent of fallback (Phase 4).
     """
 
+    # Chat channel for agent-chat-ui / LangGraph Server (Phase 6). The last
+    # human message seeds ``query``; the final answer is appended here (with a
+    # route/fallback badge) so a generic chat UI renders it.
+    messages: Annotated[list[Any], add_messages]
     query: str
     route: str
     router_rationale: str

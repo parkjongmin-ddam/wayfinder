@@ -44,7 +44,7 @@ query='What is the capital of France?' | route=A(semantic) | rationale='classifi
 ```sh
 pip install -e ".[test]"
 cp .env.example .env
-pytest -q                     # 64 tests: routing + fallback + verify + mcp + orchestrator + seams
+pytest -q                     # 68 tests: routing + fallback + verify + mcp + orchestrator + chat + seams
 python scripts/demo_trace.py  # print the decision trace for one query per route
 ```
 
@@ -173,6 +173,14 @@ START -> route -> supervisor --(select)--> retrieval_agent -> supervisor
 Enable it as the served agent with `AGENT_MODE=multi` (the MCP server then exposes the
 orchestrator behind the same `ask_wayfinder` tool), or run `python scripts/demo_orchestrator.py`.
 The decision trace gains an `agents=retrieval_agent->web_agent->synthesis_agent` segment.
+
+## Deploy (Phase 6)
+
+`langgraph.json` serves two graphs — `agent` and `orchestrator` — over the LangGraph Server API.
+Run locally with `langgraph dev` (`pip install "langgraph-cli[inmem]"`). Both graphs accept a chat
+`messages` input and append the answer as an AIMessage with a `🧭 route · fallback · faith` badge,
+so **agent-chat-ui** renders the path with no custom UI. Managed deploy (LangGraph Platform) +
+Supabase pgvector + Vercel frontend: see [`DEPLOY.md`](./DEPLOY.md).
 
 ## Layout
 
