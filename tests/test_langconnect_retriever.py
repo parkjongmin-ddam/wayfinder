@@ -10,12 +10,24 @@ from __future__ import annotations
 
 import pytest
 
+from types import SimpleNamespace
+
 from langconnect_agent.graph import build_graph
+from langconnect_agent import retrievers as retrievers_mod
 from langconnect_agent.retrievers import (
     Document,
     LangConnectRetriever,
     Retriever,
+    StubRetriever,
+    get_retriever,
 )
+
+
+def _cfg(retriever_provider="auto"):
+    return SimpleNamespace(
+        retriever_provider=retriever_provider,
+        embedding_model="text-embedding-3-small",
+    )
 
 
 class _FakeCursor:
@@ -141,3 +153,28 @@ def test_drops_into_graph_with_no_node_changes():
     assert not result.get("fallbacks_used")  # in-corpus query, graded sufficient
     assert result["answer"].strip()
     assert isinstance(result["documents"][0], Document)
+
+
+# --- get_retriever provider selection (offline) --------------------------
+def test_get_retriever_auto_uses_stub_without_conninfo(monkeypatch):
+    monkeypatch.delenv("PGVECTOR_CONNINFO", raising=False)
+    assert isinstance(get_retriever(_cfg("auto")), StubRetriever)
+
+
+def test_get_retriever_auto_uses_pgvector_when_conninfo_present(monkeypatch):
+    monkeypatch.setenv("PGVECTOR_CONNINFO", "postgresql://x:y@localhost/z")
+    # Avoid importing langchain_openai / needing a key in the test.
+    monkeypatch.setattr(
+        retrievers_mod, "get_openai_embedder", lambda cfg=None: (lambda q: [0.0])
+    )
+    assert isinstance(get_retriever(_cfg("auto")), LangConnectRetriever)
+
+
+def test_get_retriever_explicit_providers_override_auto(monkeypatch):
+    monkeypatch.setenv("PGVECTOR_CONNINFO", "postgresql://x:y@localhost/z")
+    assert isinstance(get_retriever(_cfg("stub")), StubRetriever)
+    monkeypatch.delenv("PGVECTOR_CONNINFO", raising=False)
+    monkeypatch.setattr(
+        retrievers_mod, "get_openai_embedder", lambda cfg=None: (lambda q: [0.0])
+    )
+    assert isinstance(get_retriever(_cfg("langconnect")), LangConnectRetriever)

@@ -24,7 +24,7 @@ from langconnect_agent.config import Config, get_config
 from langconnect_agent.grading import Grader, get_grader
 from langconnect_agent.llm import get_llm, get_router_llm
 from langconnect_agent.nodes import answer, grade, retrieve, route, web_search
-from langconnect_agent.retrievers import Retriever, StubRetriever
+from langconnect_agent.retrievers import Retriever, get_retriever
 from langconnect_agent.state import AgentState
 from langconnect_agent.web import WebSearcher, get_web_searcher
 
@@ -51,7 +51,8 @@ def build_graph(
     """Build and compile the Phase 3 agent graph.
 
     Args:
-        retriever: retriever for routes A/B. Defaults to offline StubRetriever.
+        retriever: retriever for routes A/B. Defaults to ``get_retriever(config)``
+            (real pgvector when ``PGVECTOR_CONNINFO`` is set, else StubRetriever).
         web_searcher: searcher for route C. Defaults to offline StubWebSearcher.
         router_llm: fast routing LLM. Defaults to the provider's router LLM
             (offline MockRouterLLM unless ``LLM_PROVIDER`` is overridden).
@@ -64,7 +65,7 @@ def build_graph(
         A compiled LangGraph graph with the Phase 3 routing + fallback topology.
     """
     config = config or get_config()
-    retriever = retriever or StubRetriever()
+    retriever = retriever or get_retriever(config)
     web_searcher = web_searcher or get_web_searcher(config)
     router_llm = router_llm if router_llm is not None else get_router_llm(config)
     grader = grader or get_grader(config)

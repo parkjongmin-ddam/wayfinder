@@ -19,11 +19,13 @@ def _hermetic_env():
     os.environ["LANGSMITH_TRACING"] = "false"
     os.environ["LLM_PROVIDER"] = "mock"
     os.environ["WEB_PROVIDER"] = "stub"
+    os.environ["RETRIEVER_PROVIDER"] = "stub"
     for key in (
         "LANGSMITH_API_KEY",
         "TAVILY_API_KEY",
         "ANTHROPIC_API_KEY",
         "OPENAI_API_KEY",
+        "PGVECTOR_CONNINFO",
     ):
         os.environ.pop(key, None)
     yield

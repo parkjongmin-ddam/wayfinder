@@ -31,6 +31,11 @@ class Config:
         max_fallbacks: maximum number of fallback hops (Phase 3, 1-hop cap).
         web_provider: route C searcher — "auto" (Tavily if TAVILY_API_KEY set,
             else stub), "stub", or "tavily".
+        retriever_provider: routes A/B retriever — "auto" (real pgvector
+            ``LangConnectRetriever`` if ``PGVECTOR_CONNINFO`` is set, else the
+            offline ``StubRetriever``), "stub", or "langconnect".
+        embedding_model: embedding model used for both ingestion and query
+            (must match the model the corpus was ingested with).
     """
 
     llm_provider: str = field(default_factory=_default_provider)
@@ -41,6 +46,8 @@ class Config:
     grade_threshold: float = 0.5
     max_fallbacks: int = 1
     web_provider: str = "auto"  # auto | stub | tavily (route C searcher)
+    retriever_provider: str = "auto"  # auto | stub | langconnect (routes A/B)
+    embedding_model: str = "text-embedding-3-small"
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -54,6 +61,8 @@ class Config:
             grade_threshold=float(os.getenv("GRADE_THRESHOLD", "0.5")),
             max_fallbacks=int(os.getenv("MAX_FALLBACKS", "1")),
             web_provider=os.getenv("WEB_PROVIDER", "auto"),
+            retriever_provider=os.getenv("RETRIEVER_PROVIDER", "auto"),
+            embedding_model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
         )
 
 

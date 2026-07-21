@@ -37,7 +37,7 @@ query='What is the capital of France?' | route=A(semantic) | rationale='classifi
 ```sh
 pip install -e ".[test]"
 cp .env.example .env
-pytest -q                     # 26 tests: routing + fallback + isolation + seam mapping
+pytest -q                     # 49 tests: routing + fallback + isolation + seam mapping
 python scripts/demo_trace.py  # print the decision trace for one query per route
 ```
 
@@ -68,8 +68,26 @@ Set `LLM_PROVIDER` in `.env`: `mock` (default, offline), `anthropic`
 
 `LangConnectRetriever` (pgvector) is fully implemented — inject an embedder + connection
 (or set `PGVECTOR_*` env vars) and it drops into the graph unchanged. `pip install -e ".[pgvector]"`.
-The live Phase 1 parity gate additionally needs the real DB, the ingestion-time embedding
-model, and the Phase 0 baseline.
+
+## Phase 1 parity (pgvector — live)
+
+Routes A/B run on a **real pgvector store** by default. `get_retriever(config)`
+selects `LangConnectRetriever` (OpenAI `text-embedding-3-small`, cosine `<=>`)
+when `PGVECTOR_CONNINFO` is set, else the offline `StubRetriever` — `auto` |
+`stub` | `langconnect` via `RETRIEVER_PROVIDER`.
+
+```sh
+pip install -e ".[openai,pgvector]"
+# Postgres 16 + pgvector; set PGVECTOR_CONNINFO + OPENAI_API_KEY in .env
+python scripts/ingest.py            # chunk + embed ./corpus -> langconnect_embeddings
+```
+
+**Parity result (measured).** The `corpus/` RAG-concept docs answer the eval's
+in-corpus route A/B queries. Same real `LLMGrader`, stub → real docs: the two
+semantic in-corpus cases flip from *insufficient* (spurious web fallback) to
+*sufficient* (grounded answer, no fallback) — real retrieval removes the stub
+artifact that inflated the fallback rate (§4.1). The remaining fallback is the
+grader's genuine judgment, not a stub effect.
 
 ## Evaluation (Phase 4 — the differentiator)
 

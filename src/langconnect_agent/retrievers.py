@@ -182,3 +182,37 @@ class LangConnectRetriever:
                 cur.execute(sql, params)
                 rows = cur.fetchall()
         return [self._row_to_document(r) for r in rows]
+
+
+def get_openai_embedder(config: Any = None) -> Any:
+    """Return an OpenAI embeddings client (``.embed_query`` / ``.embed_documents``).
+
+    Lazily imports ``langchain_openai`` so the dependency stays optional. The
+    model defaults to ``config.embedding_model`` (``text-embedding-3-small``);
+    the SAME model must be used for ingestion and query.
+    """
+    model = getattr(config, "embedding_model", None) or "text-embedding-3-small"
+    from langchain_openai import OpenAIEmbeddings  # lazy import
+
+    return OpenAIEmbeddings(model=model)
+
+
+def get_retriever(config: Any = None) -> Retriever:
+    """Select the routes A/B retriever.
+
+    "auto" (default) → real ``LangConnectRetriever`` (pgvector) when
+    ``PGVECTOR_CONNINFO`` is set, else the offline ``StubRetriever``.
+    "stub"/"langconnect" force one explicitly. The real retriever is wired with
+    an OpenAI embedder matching ``config.embedding_model``.
+    """
+    import os
+
+    provider = (getattr(config, "retriever_provider", None) or "auto").lower()
+    if provider == "stub":
+        return StubRetriever()
+    if provider == "langconnect":
+        return LangConnectRetriever(embedder=get_openai_embedder(config))
+    # auto
+    if os.getenv("PGVECTOR_CONNINFO"):
+        return LangConnectRetriever(embedder=get_openai_embedder(config))
+    return StubRetriever()
