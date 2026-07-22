@@ -10,9 +10,10 @@ differentiator metrics offline (no keys):
 * **per-route faithfulness** — is the answer grounded in the retrieved context?
 
 Faithfulness here is a deterministic lexical proxy (``MockFaithfulness``) so the
-harness is provable with mock data. ``RagasFaithfulness`` is the seam for the
-real RAGAS metric (needs an LLM + embeddings); ``get_faithfulness`` picks the
-mock offline and the RAGAS seam for real providers. The same eval set is meant
+harness is provable with mock data. ``RagasFaithfulness`` is the real RAGAS
+metric (needs only an LLM judge — runs locally on Ollama or on a hosted
+provider); ``get_faithfulness`` picks the mock offline and the RAGAS metric when
+``FAITHFULNESS=ragas`` with a real provider. The same eval set is meant
 to be registered as a LangSmith dataset once a key is available
 (``register_langsmith_dataset``).
 """
@@ -113,8 +114,8 @@ class RagasFaithfulness:
 
     Uses ragas to extract the claims in ``answer`` and verify each against the
     retrieved contexts via ``llm`` (a langchain chat model — pass a real
-    provider, e.g. ChatAnthropic; the offline MockLLM won't work). Faithfulness
-    needs only an LLM, not embeddings.
+    provider, e.g. ChatOllama for a local/offline judge or ChatAnthropic; the
+    offline MockLLM won't work). Faithfulness needs only an LLM, not embeddings.
     """
 
     def __init__(self, llm: Any = None, embeddings: Any = None) -> None:
@@ -207,9 +208,10 @@ def get_faithfulness(config: Any = None) -> FaithfulnessMetric:
     Defaults to the provider-independent lexical proxy (``MockFaithfulness``),
     which works on real answers too and needs no keys. Real RAGAS
     (``RagasFaithfulness``) is opt-in via ``FAITHFULNESS=ragas`` and uses the
-    fast router model (Haiku) as the judge to keep cost down. RAGAS requires a
-    real LLM provider (``LLM_PROVIDER=anthropic``) — with the mock provider the
-    judge LLM isn't a langchain model.
+    fast router model as the judge to keep cost down. It works with any real
+    provider: ``LLM_PROVIDER=ollama`` runs the judge locally (e.g. qwen2.5:3b,
+    free/offline), ``LLM_PROVIDER=anthropic`` uses Haiku. Only the mock provider
+    won't work — its judge LLM isn't a langchain chat model.
     """
     import os
 
