@@ -63,18 +63,27 @@ def get_llm(
     if model is None and config is not None:
         model = getattr(config, "answer_model", None)
 
+    temperature = kwargs.pop("temperature", None)
+
     if provider == "mock":
         return MockLLM(model=model or "mock", **kwargs)
+
+    if temperature is None:
+        temperature = getattr(config, "answer_temperature", 0.0)
 
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic  # lazy import
 
-        return ChatAnthropic(model=model or "claude-opus-4-8", **kwargs)
+        return ChatAnthropic(
+            model=model or "claude-opus-4-8", temperature=temperature, **kwargs
+        )
 
     if provider == "openai":
         from langchain_openai import ChatOpenAI  # lazy import
 
-        return ChatOpenAI(model=model or "gpt-4o-mini", **kwargs)
+        return ChatOpenAI(
+            model=model or "gpt-4o-mini", temperature=temperature, **kwargs
+        )
 
     if provider == "ollama":
         from langchain_ollama import ChatOllama  # lazy import
@@ -82,6 +91,7 @@ def get_llm(
         return ChatOllama(
             model=model or "llama3.1:8b",
             base_url=_ollama_base_url(config),
+            temperature=temperature,
             **kwargs,
         )
 
@@ -113,18 +123,27 @@ def get_router_llm(
     if model is None and config is not None:
         model = getattr(config, "router_model", None)
 
+    temperature = kwargs.pop("temperature", None)
+
     if provider == "mock":
         return MockRouterLLM(model=model or "mock-router", **kwargs)
+
+    if temperature is None:
+        temperature = getattr(config, "router_temperature", 0.0)
 
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic  # lazy import
 
-        return ChatAnthropic(model=model or "claude-haiku-4-5", **kwargs)
+        return ChatAnthropic(
+            model=model or "claude-haiku-4-5", temperature=temperature, **kwargs
+        )
 
     if provider == "openai":
         from langchain_openai import ChatOpenAI  # lazy import
 
-        return ChatOpenAI(model=model or "gpt-4o-mini", **kwargs)
+        return ChatOpenAI(
+            model=model or "gpt-4o-mini", temperature=temperature, **kwargs
+        )
 
     if provider == "ollama":
         from langchain_ollama import ChatOllama  # lazy import
@@ -132,6 +151,7 @@ def get_router_llm(
         return ChatOllama(
             model=model or "qwen2.5:3b",
             base_url=_ollama_base_url(config),
+            temperature=temperature,
             **kwargs,
         )
 

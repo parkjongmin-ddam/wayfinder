@@ -73,6 +73,11 @@ class Config:
     router_model: str = _ROUTER_FALLBACK
     answer_model: str = _ANSWER_FALLBACK
     ollama_base_url: str = "http://localhost:11434"
+    # Sampling temperature. Default 0.0 → deterministic routing, grading, and
+    # answers (reproducible traces). Router/grader are classifiers, so 0.0 is
+    # the right default; the answer model is grounded, so 0.0 keeps it faithful.
+    router_temperature: float = 0.0
+    answer_temperature: float = 0.0
     top_k: int = 5
     route_default: str = "semantic"
     grade_threshold: float = 0.5
@@ -112,6 +117,8 @@ class Config:
             ollama_base_url=os.getenv(
                 "OLLAMA_BASE_URL", "http://localhost:11434"
             ),
+            router_temperature=float(os.getenv("ROUTER_TEMPERATURE", "0.0")),
+            answer_temperature=float(os.getenv("ANSWER_TEMPERATURE", "0.0")),
             top_k=int(os.getenv("TOP_K", "5")),
             route_default=os.getenv("ROUTE_DEFAULT", "semantic"),
             grade_threshold=float(os.getenv("GRADE_THRESHOLD", "0.5")),

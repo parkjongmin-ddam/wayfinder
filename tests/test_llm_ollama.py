@@ -110,6 +110,24 @@ def test_get_llm_ollama_explicit_overrides(fake_ollama):
     assert client.kwargs["model"] == "gemma2:9b"
 
 
+def test_ollama_defaults_to_temperature_zero(fake_ollama):
+    cfg = Config(llm_provider="ollama")
+
+    assert get_llm(cfg).kwargs["temperature"] == 0.0
+    assert get_router_llm(cfg).kwargs["temperature"] == 0.0
+
+
+def test_ollama_temperature_overridable(fake_ollama):
+    cfg = Config(
+        llm_provider="ollama", answer_temperature=0.7, router_temperature=0.3
+    )
+
+    assert get_llm(cfg).kwargs["temperature"] == 0.7
+    assert get_router_llm(cfg).kwargs["temperature"] == 0.3
+    # explicit kwarg wins over config
+    assert get_llm(cfg, temperature=0.0).kwargs["temperature"] == 0.0
+
+
 def test_unknown_provider_message_lists_ollama():
     with pytest.raises(ValueError, match="ollama"):
         get_llm(provider="does-not-exist")
