@@ -1,5 +1,12 @@
 {
-  "dependencies": ["."],
+  "dependencies": [
+    ".",
+    "langchain-anthropic",
+    "langchain-openai",
+    "psycopg[binary]",
+    "tavily-python",
+    "langsmith"
+  ],
   "graphs": {
     "agent": "./src/langconnect_agent/graph.py:graph",
     "orchestrator": "./src/langconnect_agent/orchestrator.py:orchestrator"
