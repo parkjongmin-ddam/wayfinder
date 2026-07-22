@@ -7,7 +7,7 @@
     "per_route_faithfulness": {
       "semantic": 0.4478,
       "keyword": 0.425,
-      "web": 0.2084
+      "web": 0.2071
     }
   },
   "cases": [
@@ -59,7 +59,7 @@
       "routed_correctly": true,
       "fell_back": false,
       "recovered": false,
-      "faithfulness": 0.2317
+      "faithfulness": 0.2289
     },
     {
       "query": "current news about vector databases",
