@@ -61,9 +61,13 @@ Serve it for the LangGraph dev UI (`langgraph.json`): `langgraph dev`.
 ## Provider swap
 
 Set `LLM_PROVIDER` in `.env`: `mock` (default, offline), `anthropic`
-(`pip install -e ".[anthropic]"`, `ANTHROPIC_API_KEY`), or `openai`
-(`pip install -e ".[openai]"`, `OPENAI_API_KEY`). Router = fast model
-(`claude-haiku-4-5`), answer = strong model (`claude-opus-4-8`); both overridable via env.
+(`pip install -e ".[anthropic]"`, `ANTHROPIC_API_KEY`), `openai`
+(`pip install -e ".[openai]"`, `OPENAI_API_KEY`), or `ollama`
+(`pip install -e ".[ollama]"`, **no API key** — models run locally). Router =
+fast model, answer = strong model, both overridable via `ROUTER_MODEL` /
+`ANSWER_MODEL`. Defaults are provider-aware: hosted → `claude-haiku-4-5` /
+`claude-opus-4-8`; ollama → `qwen2.5:3b` / `llama3.1:8b`. `OLLAMA_BASE_URL`
+defaults to `http://localhost:11434`.
 
 ## Seams (swap the stubs for the real thing)
 
@@ -72,6 +76,7 @@ Set `LLM_PROVIDER` in `.env`: `mock` (default, offline), `anthropic`
 | Retrieval A/B | `Retriever` | `StubRetriever` | `LangConnectRetriever` (pgvector) | `build_graph(retriever=...)` |
 | Web C | `WebSearcher` | `StubWebSearcher` | `TavilyWebSearcher` | `build_graph(web_searcher=...)` |
 | Grading | `Grader` | `MockGrader` | `LLMGrader` → RAGAS (Phase 4) | `build_graph(grader=...)` |
+| Embeddings | `get_embedder` | — | `OpenAIEmbeddings` \| `OllamaEmbeddings` | `EMBEDDING_PROVIDER` |
 
 `LangConnectRetriever` (pgvector) is fully implemented — inject an embedder + connection
 (or set `PGVECTOR_*` env vars) and it drops into the graph unchanged. `pip install -e ".[pgvector]"`.
@@ -79,15 +84,47 @@ Set `LLM_PROVIDER` in `.env`: `mock` (default, offline), `anthropic`
 ## Phase 1 parity (pgvector — live)
 
 Routes A/B run on a **real pgvector store** by default. `get_retriever(config)`
-selects `LangConnectRetriever` (OpenAI `text-embedding-3-small`, cosine `<=>`)
-when `PGVECTOR_CONNINFO` is set, else the offline `StubRetriever` — `auto` |
-`stub` | `langconnect` via `RETRIEVER_PROVIDER`.
+selects `LangConnectRetriever` (cosine `<=>`) when `PGVECTOR_CONNINFO` is set,
+else the offline `StubRetriever` — `auto` | `stub` | `langconnect` via
+`RETRIEVER_PROVIDER`. The embedder is pluggable via `EMBEDDING_PROVIDER`
+(`auto` follows `LLM_PROVIDER`): OpenAI `text-embedding-3-small` or local
+Ollama `nomic-embed-text`. The **same** model must embed both ingestion and query.
 
 ```sh
 pip install -e ".[openai,pgvector]"
 # Postgres 16 + pgvector; set PGVECTOR_CONNINFO + OPENAI_API_KEY in .env
 python scripts/ingest.py            # chunk + embed ./corpus -> langconnect_embeddings
 ```
+
+### Fully-local stack (Ollama + local embeddings + pgvector — no API keys)
+
+The whole pipeline can run offline on local hardware — local router, local
+embeddings, local answerer, all against a local pgvector. Measured on a 6 GB
+GTX 1660 SUPER: `qwen2.5:3b` routes at ~87 tok/s (100% GPU), `llama3.1:8b`
+answers at ~24 tok/s.
+
+```sh
+# 1. Ollama (https://ollama.com) — pull router, answerer, and embedder
+ollama pull qwen2.5:3b llama3.1:8b nomic-embed-text
+
+# 2. Local pgvector
+docker run -d --name wayfinder-pgvector -e POSTGRES_PASSWORD=wayfinder \
+  -e POSTGRES_DB=wayfinder -p 5433:5432 pgvector/pgvector:pg17
+
+# 3. Install + configure .env
+pip install -e ".[ollama,pgvector]"
+#   LLM_PROVIDER=ollama                 # EMBEDDING_PROVIDER=auto -> local nomic-embed-text
+#   PGVECTOR_CONNINFO=postgresql://postgres:wayfinder@localhost:5433/wayfinder
+
+# 4. Ingest + run
+python scripts/ingest.py            # embeds ./corpus with nomic-embed-text (768-dim)
+python scripts/demo_trace.py
+```
+
+End-to-end verified: `"What is retrieval-augmented generation?"` routes semantic,
+retrieves the in-corpus RAG doc from pgvector (top cosine ~0.82), and
+`llama3.1:8b` answers grounded with **faithfulness 1.0, no web fallback** — the
+full agent, running with zero API keys.
 
 **Parity result (measured).** The `corpus/` RAG-concept docs answer the eval's
 in-corpus route A/B queries. Same real `LLMGrader`, stub → real docs: the two
