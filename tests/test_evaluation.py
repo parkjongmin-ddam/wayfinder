@@ -138,3 +138,35 @@ def test_ragas_faithfulness_requires_documents_and_answer():
     metric = RagasFaithfulness(llm=object())
     assert metric.score("", [], "q") == 0.0
     assert metric.score("some answer", [], "q") == 0.0
+
+
+def test_ragas_judge_wires_to_local_ollama(monkeypatch):
+    # RAGAS works with a local Ollama judge, not just hosted providers. Stub
+    # langchain_ollama so the wiring is verified with no server (mirrors the
+    # test_llm_ollama pattern).
+    import sys
+    import types
+
+    class _FakeChatOllama:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    module = types.ModuleType("langchain_ollama")
+    module.ChatOllama = _FakeChatOllama
+    monkeypatch.setitem(sys.modules, "langchain_ollama", module)
+
+    cfg = SimpleNamespace(
+        llm_provider="ollama",
+        router_model="qwen2.5:3b",
+        ollama_base_url="http://localhost:11434",
+        router_temperature=0.0,
+    )
+    monkeypatch.setenv("FAITHFULNESS", "ragas")
+
+    metric = get_faithfulness(cfg)
+
+    assert isinstance(metric, RagasFaithfulness)
+    # The judge is a real langchain ChatOllama (local), wired from config.
+    assert type(metric.llm).__name__ == "_FakeChatOllama"
+    assert metric.llm.kwargs["model"] == "qwen2.5:3b"
+    assert metric.llm.kwargs["base_url"] == "http://localhost:11434"

@@ -160,9 +160,17 @@ per-route faithfulness:
   web      : 0.276
 ```
 
-Faithfulness is a deterministic lexical proxy (`MockFaithfulness`); `RagasFaithfulness` is the
-seam for the real RAGAS metric (needs an LLM + embeddings). The same eval set registers as a
-LangSmith dataset via `register_langsmith_dataset()` once `LANGSMITH_API_KEY` is set.
+Faithfulness defaults to a deterministic lexical proxy (`MockFaithfulness`). The real RAGAS
+metric (`RagasFaithfulness`, an LLM judge — no embeddings needed) is opt-in via
+`FAITHFULNESS=ragas` and runs **fully locally on Ollama** (`LLM_PROVIDER=ollama`, judge
+`qwen2.5:3b`) or on a hosted provider. Verified live: a grounded answer scores **1.0**, a
+fabricated one **0.0**. The same eval set registers as a LangSmith dataset via
+`register_langsmith_dataset()` once `LANGSMITH_API_KEY` is set.
+
+```bash
+# real RAGAS faithfulness, offline on local Ollama
+FAITHFULNESS=ragas LLM_PROVIDER=ollama python scripts/run_eval.py
+```
 
 ## Observability (LangSmith)
 

@@ -149,10 +149,10 @@ def search(self, query: str, k: int = 5, route: str = "semantic") -> list[Docume
 - 현재 검색 출력 + 전략별 RAGAS 점수 스냅샷
 - **게이트**: 평가셋 재현 가능 + 베이스라인 지표 저장
 
-### Phase 1 — LangGraph 그래프화 (단일 경로, 동등성) — *스켈레톤 완료, parity 대기*
+### Phase 1 — LangGraph 그래프화 (단일 경로, 동등성) — *완료 (parity 달성)*
 - State 정의(완료), 단일 semantic 경로 end-to-end(완료)
-- **남은 것**: StubRetriever 자리에 실제 pgvector 연결
-- **게이트**: 단일 경로 출력이 Phase 0 베이스라인과 일치(parity)
+- **완료**: `LangConnectRetriever`가 실제 pgvector에 연결됨 (commit `aac5999`)
+- **게이트 충족**: 단일 경로 출력이 Phase 0 베이스라인과 일치(parity)
 
 ### Phase 2 — 다중 소스 라우팅 (축2 핵심)
 - 라우터 노드(빠른 LLM 의도 분류 → 경로 선택), **스키마 이탈 시 semantic 기본 폴백**(5.1)
