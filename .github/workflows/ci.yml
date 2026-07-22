@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package (offline test stack)
+        # Base deps + pytest + mcp (test_mcp_server builds a FastMCP server).
+        # langchain-core arrives transitively via langgraph. Everything else
+        # (tavily, ragas, psycopg, ollama, anthropic) is lazily imported or
+        # stubbed in tests, so it is not needed to run the suite.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test,mcp]"
+
+      - name: Run tests
+        # The suite is fully offline: mock providers, stub sources, no keys,
+        # no network, no database (enforced by conftest).
+        run: pytest -q
