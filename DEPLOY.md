@@ -42,6 +42,14 @@ Two graphs are served (`langgraph.json`): `agent` (single-agent) and `orchestrat
    | `WEB_PROVIDER` | `auto` |
    | `RETRIEVER_PROVIDER` | `auto` |
    | `LANGSMITH_API_KEY` | your APAC key (tracing) |
+
+   > Secrets live **in the deployment settings above**, not in the repo. The
+   > repo's `.env` is gitignored (never pushed); `langgraph.json`'s `"env":
+   > "./.env"` is only a convenience for local `langgraph dev` and is harmless
+   > when absent in the cloud build. `langgraph.json` also lists the hosted
+   > runtime deps (`langchain-anthropic`, `langchain-openai`, `psycopg`,
+   > `tavily-python`, `langsmith`) so the platform installs them — the base
+   > package alone would `ImportError` at runtime under `LLM_PROVIDER=anthropic`.
 5. Deploy → copy the **deployment URL** and create an API key for it.
 
 ## 3. agent-chat-ui — frontend on Vercel

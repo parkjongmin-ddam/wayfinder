@@ -25,6 +25,10 @@ langsmith = ["langsmith"]
 ragas = ["ragas"]
 mcp = ["mcp"]
 test = ["pytest"]
+# Hosted-runtime bundle for the LangGraph Platform deploy (DEPLOY.md): Anthropic
+# LLMs + OpenAI query embeddings + pgvector retriever + Tavily route C + tracing.
+# Kept in sync with langgraph.json's `dependencies`. Install: pip install -e ".[deploy]".
+deploy = ["langconnect-agent[anthropic,openai,pgvector,web,langsmith]"]
 
 [project.scripts]
 wayfinder-mcp = "langconnect_agent.mcp_server:main"
