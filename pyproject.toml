@@ -18,6 +18,7 @@ dependencies = [
 [project.optional-dependencies]
 anthropic = ["langchain-anthropic", "langchain-core"]
 openai = ["langchain-openai", "langchain-core"]
+ollama = ["langchain-ollama", "langchain-core"]
 pgvector = ["psycopg[binary]"]
 web = ["tavily-python"]
 langsmith = ["langsmith"]

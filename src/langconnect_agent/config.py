@@ -14,15 +14,26 @@ def _default_provider() -> str:
     return os.getenv("LLM_PROVIDER", "mock")
 
 
+# Per-provider default model names. Hosted providers default to frontier models;
+# the local "ollama" provider defaults to models that fit a 6 GB-VRAM GPU — a
+# fast 3B router (100% GPU) and an 8B answer model — measured on this hardware.
+_ROUTER_DEFAULTS = {"ollama": "qwen2.5:3b"}
+_ANSWER_DEFAULTS = {"ollama": "llama3.1:8b"}
+_ROUTER_FALLBACK = "claude-haiku-4-5"
+_ANSWER_FALLBACK = "claude-opus-4-8"
+
+
 @dataclass
 class Config:
     """Runtime settings for the agent.
 
     Attributes:
-        llm_provider: which LLM backend to use ("mock", "anthropic", "openai").
-            Defaults to the ``LLM_PROVIDER`` env var, or "mock".
+        llm_provider: which LLM backend to use ("mock", "anthropic", "openai",
+            "ollama"). Defaults to the ``LLM_PROVIDER`` env var, or "mock".
         router_model: fast model name used for routing decisions (Phase 2+).
         answer_model: strong model name used for answer synthesis.
+        ollama_base_url: base URL of the local Ollama server (provider="ollama").
+            Defaults to the ``OLLAMA_BASE_URL`` env var, or localhost:11434.
         top_k: number of documents to retrieve.
         route_default: safe fallback route when the router output is malformed
             or off-schema (Phase 2 runtime defense, BUILD_SPEC §5.1).
@@ -47,8 +58,9 @@ class Config:
     """
 
     llm_provider: str = field(default_factory=_default_provider)
-    router_model: str = "claude-haiku-4-5"
-    answer_model: str = "claude-opus-4-8"
+    router_model: str = _ROUTER_FALLBACK
+    answer_model: str = _ANSWER_FALLBACK
+    ollama_base_url: str = "http://localhost:11434"
     top_k: int = 5
     route_default: str = "semantic"
     grade_threshold: float = 0.5
@@ -66,10 +78,19 @@ class Config:
     @classmethod
     def from_env(cls) -> "Config":
         """Build a Config, reading overridable values from the environment."""
+        provider = os.getenv("LLM_PROVIDER", "mock")
+        # Model defaults are provider-aware: the local "ollama" provider needs
+        # ollama model tags, not Claude names. Explicit ROUTER_MODEL /
+        # ANSWER_MODEL always win.
+        router_default = _ROUTER_DEFAULTS.get(provider, _ROUTER_FALLBACK)
+        answer_default = _ANSWER_DEFAULTS.get(provider, _ANSWER_FALLBACK)
         return cls(
-            llm_provider=os.getenv("LLM_PROVIDER", "mock"),
-            router_model=os.getenv("ROUTER_MODEL", "claude-haiku-4-5"),
-            answer_model=os.getenv("ANSWER_MODEL", "claude-opus-4-8"),
+            llm_provider=provider,
+            router_model=os.getenv("ROUTER_MODEL", router_default),
+            answer_model=os.getenv("ANSWER_MODEL", answer_default),
+            ollama_base_url=os.getenv(
+                "OLLAMA_BASE_URL", "http://localhost:11434"
+            ),
             top_k=int(os.getenv("TOP_K", "5")),
             route_default=os.getenv("ROUTE_DEFAULT", "semantic"),
             grade_threshold=float(os.getenv("GRADE_THRESHOLD", "0.5")),

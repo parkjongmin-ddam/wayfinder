@@ -2,13 +2,26 @@
 
 ``get_llm`` returns an object exposing ``.invoke(prompt) -> str``-like output.
 The "mock" provider is fully deterministic and requires no network and no API
-keys. The "anthropic" and "openai" providers lazily import their langchain
-packages only when selected, so those deps stay optional.
+keys. The "anthropic", "openai", and "ollama" providers lazily import their
+langchain packages only when selected, so those deps stay optional. "ollama"
+runs a model locally against an Ollama server (no API key, offline-capable).
 """
 
 from __future__ import annotations
 
+import os
 from typing import Any, Optional
+
+_DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
+
+
+def _ollama_base_url(config: Any) -> str:
+    """Resolve the Ollama server URL from config, then env, then default."""
+    return (
+        getattr(config, "ollama_base_url", None)
+        or os.getenv("OLLAMA_BASE_URL")
+        or _DEFAULT_OLLAMA_BASE_URL
+    )
 
 
 class MockLLM:
@@ -63,9 +76,18 @@ def get_llm(
 
         return ChatOpenAI(model=model or "gpt-4o-mini", **kwargs)
 
+    if provider == "ollama":
+        from langchain_ollama import ChatOllama  # lazy import
+
+        return ChatOllama(
+            model=model or "llama3.1:8b",
+            base_url=_ollama_base_url(config),
+            **kwargs,
+        )
+
     raise ValueError(
         f"Unknown llm provider {provider!r}. "
-        "Expected one of: 'mock', 'anthropic', 'openai'."
+        "Expected one of: 'mock', 'anthropic', 'openai', 'ollama'."
     )
 
 
@@ -104,7 +126,16 @@ def get_router_llm(
 
         return ChatOpenAI(model=model or "gpt-4o-mini", **kwargs)
 
+    if provider == "ollama":
+        from langchain_ollama import ChatOllama  # lazy import
+
+        return ChatOllama(
+            model=model or "qwen2.5:3b",
+            base_url=_ollama_base_url(config),
+            **kwargs,
+        )
+
     raise ValueError(
         f"Unknown llm provider {provider!r}. "
-        "Expected one of: 'mock', 'anthropic', 'openai'."
+        "Expected one of: 'mock', 'anthropic', 'openai', 'ollama'."
     )
