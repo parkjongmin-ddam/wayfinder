@@ -240,10 +240,14 @@ class EvalReport:
     fallback_rate: float = 0.0
     recovery_rate: float = 0.0        # over cases where fallback was expected
     per_route_faithfulness: dict[str, float] = field(default_factory=dict)
+    # Which faithfulness metric produced the scores (e.g. MockFaithfulness,
+    # RagasFaithfulness) — so the summary/snapshot label the run honestly.
+    faithfulness_metric: str = "MockFaithfulness"
 
     def summary(self) -> str:
         lines = [
-            "=== langconnect-agent evaluation (offline, mock data) ===",
+            f"=== langconnect-agent evaluation "
+            f"(faithfulness: {self.faithfulness_metric}) ===",
             f"cases                : {len(self.results)}",
             f"routing accuracy     : {self.routing_accuracy:.2%}",
             f"fallback firing rate : {self.fallback_rate:.2%}",
@@ -253,6 +257,31 @@ class EvalReport:
         for route, score in sorted(self.per_route_faithfulness.items()):
             lines.append(f"  {route:9s}: {score:.3f}")
         return "\n".join(lines)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize the report to a JSON-friendly dict (baseline snapshot)."""
+        return {
+            "faithfulness_metric": self.faithfulness_metric,
+            "metrics": {
+                "routing_accuracy": self.routing_accuracy,
+                "fallback_rate": self.fallback_rate,
+                "recovery_rate": self.recovery_rate,
+                "per_route_faithfulness": self.per_route_faithfulness,
+            },
+            "cases": [
+                {
+                    "query": r.case.query,
+                    "expected_route": r.case.expected_route,
+                    "expect_fallback": r.case.expect_fallback,
+                    "actual_route": r.actual_route,
+                    "routed_correctly": r.routed_correctly,
+                    "fell_back": r.fell_back,
+                    "recovered": r.recovered,
+                    "faithfulness": r.faithfulness,
+                }
+                for r in self.results
+            ],
+        }
 
 
 def _mean(xs: list[float]) -> float:
@@ -316,6 +345,7 @@ def evaluate(
         fallback_rate=fallback_rate,
         recovery_rate=recovery_rate,
         per_route_faithfulness=per_route_faithfulness,
+        faithfulness_metric=type(faithfulness).__name__,
     )
 
 
