@@ -39,25 +39,31 @@ Two graphs are served (`langgraph.json`): `agent` (single-agent) and `orchestrat
 1. Push the repo to GitHub (done: `parkjongmin-ddam/wayfinder`).
 2. LangSmith (APAC: smith.langchain.com, APAC region) → **Deployments** → **+ New Deployment**.
 3. Connect the GitHub repo; LangGraph config path = `langgraph.json`.
-4. Set environment variables (secrets):
+4. Set environment variables (secrets) — **OpenAI-unified** (one hosted provider
+   for both the LLM and the embeddings):
    | Var | Value |
    |---|---|
-   | `ANTHROPIC_API_KEY` | your key (router=Haiku, synthesis=Opus) |
-   | `OPENAI_API_KEY` | your key (query embeddings) |
+   | `LLM_PROVIDER` | `openai` |
+   | `OPENAI_API_KEY` | your key — LLM (router + answer, `gpt-4o-mini`) **and** query embeddings (`text-embedding-3-small`) |
    | `TAVILY_API_KEY` | your key (route C) |
    | `PGVECTOR_CONNINFO` | the Supabase URI from step 1 |
-   | `LLM_PROVIDER` | `anthropic` |
+   | `LANGSMITH_API_KEY` | your APAC key (tracing) |
    | `WEB_PROVIDER` | `auto` |
    | `RETRIEVER_PROVIDER` | `auto` |
-   | `LANGSMITH_API_KEY` | your APAC key (tracing) |
+
+   No `ANTHROPIC_API_KEY` is needed with this setup.
+
+   > **Alternative — Anthropic for the LLM.** Set `LLM_PROVIDER=anthropic` +
+   > `ANTHROPIC_API_KEY` (router=Haiku, synthesis=Opus) and keep `OPENAI_API_KEY`
+   > for embeddings. OpenAI-unified above just avoids a second provider.
 
    > Secrets live **in the deployment settings above**, not in the repo. The
    > repo's `.env` is gitignored (never pushed); `langgraph.json`'s `"env":
    > "./.env"` is only a convenience for local `langgraph dev` and is harmless
    > when absent in the cloud build. `langgraph.json` also lists the hosted
-   > runtime deps (`langchain-anthropic`, `langchain-openai`, `psycopg`,
+   > runtime deps (`langchain-openai`, `langchain-anthropic`, `psycopg`,
    > `tavily-python`, `langsmith`) so the platform installs them — the base
-   > package alone would `ImportError` at runtime under `LLM_PROVIDER=anthropic`.
+   > package alone would `ImportError` at runtime under any hosted `LLM_PROVIDER`.
 5. Deploy → copy the **deployment URL** and create an API key for it.
 
 ## 3. agent-chat-ui — frontend on Vercel
