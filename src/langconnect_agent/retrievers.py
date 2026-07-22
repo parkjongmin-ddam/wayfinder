@@ -2,8 +2,9 @@
 
 ``Document`` is defined here and re-used across the codebase. ``StubRetriever``
 returns deterministic canned docs so tests run fully offline. ``LangConnectRetriever``
-is a connection SEAM: its ``search`` intentionally raises ``NotImplementedError``
-until real pgvector wiring is added.
+is the real pgvector seam: its ``search`` embeds the query, runs a cosine
+(``<=>``) similarity query against the langconnect embeddings table, and maps
+the rows to ``Document`` — active whenever ``PGVECTOR_CONNINFO`` is set.
 """
 
 from __future__ import annotations
