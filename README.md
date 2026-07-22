@@ -69,6 +69,13 @@ fast model, answer = strong model, both overridable via `ROUTER_MODEL` /
 `claude-opus-4-8`; ollama → `qwen2.5:3b` / `llama3.1:8b`. `OLLAMA_BASE_URL`
 defaults to `http://localhost:11434`.
 
+**Deterministic by default.** Sampling temperature defaults to `0.0`
+(`ROUTER_TEMPERATURE` / `ANSWER_TEMPERATURE`): the router and grader are
+classifiers and the answer is grounded, so `0.0` is the right default and makes
+the whole decision trace **reproducible** — `python scripts/demo_trace.py` is
+byte-identical across runs, even on a small local model. Raise it per role for
+more varied answers.
+
 ## Seams (swap the stubs for the real thing)
 
 | Seam | Protocol | Stub (offline) | Real | Wire in |
