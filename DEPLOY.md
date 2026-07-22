@@ -1,5 +1,18 @@
 # Deploy (Phase 6) — LangGraph Platform + Supabase + Vercel
 
+> **▶ RESUME HERE (deploy in progress).** Code is deploy-ready. **Next action:
+> start with Supabase (§1)** — create the project, enable pgvector, then ingest
+> the corpus. Everything downstream waits on the Supabase connection URI.
+>
+> **Config decision: OpenAI-unified** — `LLM_PROVIDER=openai` (one key for LLM +
+> embeddings; **no Anthropic**). So the ingest and the cloud both use openai
+> embeddings (`text-embedding-3-small`, 1536-dim).
+>
+> Remaining order: **Supabase URI → ingest (`EMBEDDING_PROVIDER=openai`, expect
+> `dim=1536`) → LangGraph Platform (§2) → Vercel (§3)**. Keys already obtained:
+> OpenAI, Tavily, LangSmith (fix the stray leading `_` on the LangSmith value in
+> `.env`). Merge PR #7 first so this deploy config is on `main`.
+
 Goal (gate): an outside person reproduces the three-route demo from a link alone.
 
 Stack:
