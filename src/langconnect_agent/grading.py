@@ -38,6 +38,22 @@ CORPUS_VOCAB: frozenset[str] = frozenset(
 _SUFFICIENT_SCORE = 0.85
 _INSUFFICIENT_SCORE = 0.25
 
+# LLMGrader rating scale: the judge rates grounding 1..5; map to a 0..1 score.
+_RATING_MIN = 1
+_RATING_MAX = 5
+_UNPARSEABLE_SCORE = 0.5  # neutral default when the judge output has no rating
+
+
+def _parse_rating(text: str) -> Optional[int]:
+    """Extract a 1..5 grounding rating from the judge's reply, or ``None``."""
+    match = re.search(r"[1-5]", text or "")
+    return int(match.group()) if match else None
+
+
+def _rating_to_score(rating: int) -> float:
+    """Map a 1..5 rating onto 0.0..1.0 (1→0.0, 3→0.5, 5→1.0)."""
+    return (rating - _RATING_MIN) / (_RATING_MAX - _RATING_MIN)
+
 
 @dataclass
 class GradeResult:
@@ -89,12 +105,27 @@ class MockGrader:
 
 
 class LLMGrader:
-    """Seam for a real fast-model grounding judge (Phase 4 → RAGAS)."""
+    """Real fast-model grounding judge (RAGAS-style, graded 1..5 → 0..1).
+
+    Asks the LLM to rate how well the retrieved CONTEXT grounds an answer to the
+    QUESTION on a 1..5 scale, then maps that to a 0..1 sufficiency score compared
+    against ``threshold``. Runs on the provider's *fast* model (e.g. local
+    ``qwen2.5:3b`` under ``LLM_PROVIDER=ollama``), so grading stays cheap.
+
+    Runtime defense (cf. the router's off-schema default, BUILD_SPEC §5.1): if the
+    judge's reply carries no parseable rating, default to a neutral *sufficient*
+    verdict rather than spuriously discarding good retrieval — the post-answer
+    ``verify`` faithfulness gate is the backstop against ungrounded answers.
+    """
 
     _PROMPT = (
-        "You judge whether the CONTEXT sufficiently grounds an answer to the "
-        "QUESTION. Reply with ONLY one word: SUFFICIENT or INSUFFICIENT.\n\n"
-        "CONTEXT:\n{context}\n\nQUESTION: {query}\n\nVerdict:"
+        "You are a strict retrieval grader. Rate how well the CONTEXT grounds a "
+        "complete answer to the QUESTION on a scale of 1 to 5:\n"
+        "  1 = context is irrelevant or missing the facts needed;\n"
+        "  3 = context is partially relevant but incomplete;\n"
+        "  5 = context fully and directly supports a complete answer.\n"
+        "Reply with ONLY the single digit.\n\n"
+        "CONTEXT:\n{context}\n\nQUESTION: {query}\n\nRating (1-5):"
     )
 
     def __init__(self, llm: Any, threshold: float = 0.5) -> None:
@@ -108,10 +139,18 @@ class LLMGrader:
             getattr(d, "page_content", str(d)) for d in documents
         )
         raw = self.llm.invoke(self._PROMPT.format(context=context, query=query))
-        text = str(getattr(raw, "content", raw)).strip().lower()
-        sufficient = "insufficient" not in text and "sufficient" in text
-        score = _SUFFICIENT_SCORE if sufficient else _INSUFFICIENT_SCORE
-        return GradeResult(score, sufficient, f"llm judge: {text[:40]}")
+        text = str(getattr(raw, "content", raw)).strip()
+        rating = _parse_rating(text)
+        if rating is None:
+            return GradeResult(
+                _UNPARSEABLE_SCORE,
+                _UNPARSEABLE_SCORE >= self.threshold,
+                f"llm judge unparseable {text[:30]!r}; defaulted neutral",
+            )
+        score = _rating_to_score(rating)
+        return GradeResult(
+            score, score >= self.threshold, f"llm judge rated {rating}/5"
+        )
 
 
 def get_grader(
