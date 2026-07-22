@@ -22,6 +22,18 @@ _ANSWER_DEFAULTS = {"ollama": "llama3.1:8b"}
 _ROUTER_FALLBACK = "claude-haiku-4-5"
 _ANSWER_FALLBACK = "claude-opus-4-8"
 
+# Per-embedding-provider default model. Ollama uses a local embedder; the hosted
+# default is OpenAI's small embedding model. Ingestion and query MUST share one.
+_EMBED_MODEL_DEFAULTS = {"ollama": "nomic-embed-text", "openai": "text-embedding-3-small"}
+
+
+def _resolve_embedding_provider(llm_provider: str, raw: str) -> str:
+    """Resolve EMBEDDING_PROVIDER; "auto" follows the LLM provider (local→local)."""
+    raw = (raw or "auto").lower()
+    if raw != "auto":
+        return raw
+    return "ollama" if llm_provider == "ollama" else "openai"
+
 
 @dataclass
 class Config:
@@ -69,6 +81,7 @@ class Config:
     faithfulness_threshold: float = 0.35  # low: lexical proxy underestimates
     max_verify_retries: int = 1  # 1-hop answer-regeneration cap
     retriever_provider: str = "auto"  # auto | stub | langconnect (routes A/B)
+    embedding_provider: str = "openai"  # openai | ollama (resolved from "auto")
     embedding_model: str = "text-embedding-3-small"
     # Step 4 multi-agent orchestration.
     agent_mode: str = "single"  # single (graph.py) | multi (orchestrator.py)
@@ -84,6 +97,14 @@ class Config:
         # ANSWER_MODEL always win.
         router_default = _ROUTER_DEFAULTS.get(provider, _ROUTER_FALLBACK)
         answer_default = _ANSWER_DEFAULTS.get(provider, _ANSWER_FALLBACK)
+        # Embeddings: "auto" follows the LLM provider so a local stack stays
+        # fully local (ollama embedder), and the model default matches.
+        embedding_provider = _resolve_embedding_provider(
+            provider, os.getenv("EMBEDDING_PROVIDER", "auto")
+        )
+        embed_model_default = _EMBED_MODEL_DEFAULTS.get(
+            embedding_provider, "text-embedding-3-small"
+        )
         return cls(
             llm_provider=provider,
             router_model=os.getenv("ROUTER_MODEL", router_default),
@@ -101,7 +122,8 @@ class Config:
             ),
             max_verify_retries=int(os.getenv("MAX_VERIFY_RETRIES", "1")),
             retriever_provider=os.getenv("RETRIEVER_PROVIDER", "auto"),
-            embedding_model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
+            embedding_provider=embedding_provider,
+            embedding_model=os.getenv("EMBEDDING_MODEL", embed_model_default),
             agent_mode=os.getenv("AGENT_MODE", "single"),
             max_agent_steps=int(os.getenv("MAX_AGENT_STEPS", "4")),
             rewrite_count=int(os.getenv("REWRITE_COUNT", "2")),

@@ -28,7 +28,7 @@ from langconnect_agent.config import get_config  # noqa: E402
 from langconnect_agent.env import load_env  # noqa: E402
 from langconnect_agent.retrievers import (  # noqa: E402
     _as_vector_literal,
-    get_openai_embedder,
+    get_embedder,
 )
 
 TABLE = os.getenv("PGVECTOR_TABLE", "langconnect_embeddings")
@@ -114,7 +114,7 @@ def main() -> int:
         f"Read {len(files)} files -> {len(records)} chunks. "
         f"Embedding with {config.embedding_model}..."
     )
-    embedder = get_openai_embedder(config)
+    embedder = get_embedder(config)
     vectors = embedder.embed_documents([c for _, c, _ in records])
     dim = len(vectors[0])
     print(f"Embedded {len(vectors)} chunks, dim={dim}. Loading into {TABLE}...")

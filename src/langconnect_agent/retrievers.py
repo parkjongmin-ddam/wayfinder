@@ -197,13 +197,48 @@ def get_openai_embedder(config: Any = None) -> Any:
     return OpenAIEmbeddings(model=model)
 
 
+def get_ollama_embedder(config: Any = None) -> Any:
+    """Return a local Ollama embeddings client (``.embed_query`` / ``.embed_documents``).
+
+    Lazily imports ``langchain_ollama`` so the dependency stays optional. The
+    model defaults to ``config.embedding_model`` (``nomic-embed-text``); the SAME
+    model must be used for ingestion and query. Runs against the local Ollama
+    server (``config.ollama_base_url`` / ``OLLAMA_BASE_URL``, default :11434).
+    """
+    import os
+
+    model = getattr(config, "embedding_model", None) or "nomic-embed-text"
+    base_url = (
+        getattr(config, "ollama_base_url", None)
+        or os.getenv("OLLAMA_BASE_URL")
+        or "http://localhost:11434"
+    )
+    from langchain_ollama import OllamaEmbeddings  # lazy import
+
+    return OllamaEmbeddings(model=model, base_url=base_url)
+
+
+def get_embedder(config: Any = None) -> Any:
+    """Return the embeddings client for the configured provider.
+
+    ``config.embedding_provider`` selects "ollama" (local) or "openai" (hosted);
+    both expose ``.embed_query`` / ``.embed_documents`` so the retriever and the
+    ingest script are provider-agnostic.
+    """
+    provider = (getattr(config, "embedding_provider", None) or "openai").lower()
+    if provider == "ollama":
+        return get_ollama_embedder(config)
+    return get_openai_embedder(config)
+
+
 def get_retriever(config: Any = None) -> Retriever:
     """Select the routes A/B retriever.
 
     "auto" (default) → real ``LangConnectRetriever`` (pgvector) when
     ``PGVECTOR_CONNINFO`` is set, else the offline ``StubRetriever``.
     "stub"/"langconnect" force one explicitly. The real retriever is wired with
-    an OpenAI embedder matching ``config.embedding_model``.
+    the configured embedder (``get_embedder``: local ollama or hosted openai),
+    which MUST match the model the corpus was ingested with.
     """
     import os
 
@@ -211,8 +246,8 @@ def get_retriever(config: Any = None) -> Retriever:
     if provider == "stub":
         return StubRetriever()
     if provider == "langconnect":
-        return LangConnectRetriever(embedder=get_openai_embedder(config))
+        return LangConnectRetriever(embedder=get_embedder(config))
     # auto
     if os.getenv("PGVECTOR_CONNINFO"):
-        return LangConnectRetriever(embedder=get_openai_embedder(config))
+        return LangConnectRetriever(embedder=get_embedder(config))
     return StubRetriever()
