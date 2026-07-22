@@ -20,7 +20,7 @@ from langconnect_agent.observability import (  # noqa: E402
 
 QUERIES = [
     "How does vector similarity search work conceptually?",   # -> A semantic
-    'What does the "str_replace_based_edit_tool" error mean?',  # -> B keyword
+    "pgvector <=> operator exact syntax",  # -> B keyword (exact identifier/operator)
     "What are the latest LangGraph features released in 2026?",  # -> C web
     "What is the capital of France?",  # -> A semantic, weak grounding -> web fallback
 ]
