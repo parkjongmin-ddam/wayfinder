@@ -9,6 +9,20 @@ Built in staged phases, each with a passing gate (see `BUILD_SPEC.md`).
 
 ## Topology
 
+```mermaid
+flowchart LR
+    START([START]) --> route{{route<br/>LLM classify A/B/C}}
+    route -- "A / B" --> retrieve[retrieve<br/>pgvector]
+    route -- "C" --> web[web_search]
+    retrieve --> grade{grade<br/>grounding sufficient?}
+    web --> grade
+    grade -- "weak · 1-hop" --> web
+    grade -- "ok" --> answer[answer<br/>grounded synthesis]
+    answer --> verify{verify<br/>faithful?}
+    verify -- "no · regen 1-hop" --> answer
+    verify -- "yes" --> END([END])
+```
+
 ```
 START -> route -> retrieve | web_search -> grade -> answer -> verify -> END
                                             grade  -> web_search   (1-hop fallback)
@@ -58,6 +72,14 @@ print(result["answer"], result["trace"])
 
 Serve it for the LangGraph dev UI (`langgraph.json`): `langgraph dev`.
 
+## Writeup & demo
+
+- **[docs/blog.md](docs/blog.md)** — the build story: seam-first architecture,
+  taking the whole stack local on a 6 GB GPU, and making a small-model demo
+  deterministic.
+- **[docs/DEMO.md](docs/DEMO.md)** — run the fully-local decision-trace demo and
+  record it as a GIF; includes the deterministic expected output.
+
 ## Provider swap
 
 Set `LLM_PROVIDER` in `.env`: `mock` (default, offline), `anthropic`
@@ -77,6 +99,31 @@ byte-identical across runs, even on a small local model. Raise it per role for
 more varied answers.
 
 ## Seams (swap the stubs for the real thing)
+
+Every external dependency sits behind a protocol, so the **same graph** runs
+offline (mock/stub), on hosted APIs, or **fully local** (Ollama + pgvector) — no
+node changes, only config:
+
+```mermaid
+flowchart TD
+    subgraph graph["compiled graph (unchanged)"]
+        R[route] --> RT[retrieve]
+        R --> WS[web_search]
+        RT --> G[grade]
+        WS --> G
+        G --> AN[answer]
+        AN --> V[verify]
+    end
+    R -.-> P{{LLM_PROVIDER}}
+    G -.-> P
+    AN -.-> P
+    RT -.-> EP{{EMBEDDING_PROVIDER}}
+    RT -.-> DB[(pgvector)]
+    WS -.-> WP{{WEB_PROVIDER}}
+    P --> PV["mock · anthropic/openai · ollama (qwen2.5:3b / llama3.1:8b)"]
+    EP --> EV["openai (text-embedding-3-small) · ollama (nomic-embed-text)"]
+    WP --> WV["stub · tavily"]
+```
 
 | Seam | Protocol | Stub (offline) | Real | Wire in |
 |---|---|---|---|---|
