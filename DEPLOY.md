@@ -22,9 +22,17 @@ Two graphs are served (`langgraph.json`): `agent` (single-agent) and `orchestrat
    `postgresql://postgres.<ref>:<pwd>@aws-0-<region>.pooler.supabase.com:6543/postgres`.
 4. Ingest the corpus into Supabase (locally, one time):
    ```sh
-   PGVECTOR_CONNINFO="<supabase-uri>" OPENAI_API_KEY="sk-..." python scripts/ingest.py
+   PGVECTOR_CONNINFO="<supabase-uri>" OPENAI_API_KEY="sk-..." \
+     EMBEDDING_PROVIDER=openai python scripts/ingest.py
    ```
    This creates `langconnect_embeddings` and loads the 18 corpus chunks.
+
+   > **Embedding consistency (critical).** `ingest.py` loads `.env`, so a local
+   > `LLM_PROVIDER=ollama` makes `EMBEDDING_PROVIDER=auto` resolve to the local
+   > ollama embedder (`nomic-embed-text`, 768-dim). The cloud deploy queries
+   > with **openai** (`text-embedding-3-small`, 1536-dim). Ingest and query
+   > **must use the same embedder**, so force `EMBEDDING_PROVIDER=openai` here —
+   > otherwise search returns nothing (dimension mismatch) or garbage.
 
 ## 2. LangGraph Platform — deploy the graph
 
