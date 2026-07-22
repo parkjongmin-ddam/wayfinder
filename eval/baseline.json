@@ -1,0 +1,85 @@
+{
+  "faithfulness_metric": "MockFaithfulness",
+  "metrics": {
+    "routing_accuracy": 1.0,
+    "fallback_rate": 0.2857,
+    "recovery_rate": 1.0,
+    "per_route_faithfulness": {
+      "semantic": 0.4478,
+      "keyword": 0.425,
+      "web": 0.2084
+    }
+  },
+  "cases": [
+    {
+      "query": "How does semantic vector search rank documents?",
+      "expected_route": "semantic",
+      "expect_fallback": false,
+      "actual_route": "semantic",
+      "routed_correctly": true,
+      "fell_back": false,
+      "recovered": false,
+      "faithfulness": 0.5667
+    },
+    {
+      "query": "Why does reranking improve recall in retrieval?",
+      "expected_route": "semantic",
+      "expect_fallback": false,
+      "actual_route": "semantic",
+      "routed_correctly": true,
+      "fell_back": false,
+      "recovered": false,
+      "faithfulness": 0.5667
+    },
+    {
+      "query": "What is the exact meaning of the \"pgvector\" operator?",
+      "expected_route": "keyword",
+      "expect_fallback": false,
+      "actual_route": "keyword",
+      "routed_correctly": true,
+      "fell_back": false,
+      "recovered": false,
+      "faithfulness": 0.6
+    },
+    {
+      "query": "What does the \"str_replace_based_edit_tool\" error mean?",
+      "expected_route": "keyword",
+      "expect_fallback": true,
+      "actual_route": "keyword",
+      "routed_correctly": true,
+      "fell_back": true,
+      "recovered": true,
+      "faithfulness": 0.25
+    },
+    {
+      "query": "What are the latest LangGraph releases in 2026?",
+      "expected_route": "web",
+      "expect_fallback": false,
+      "actual_route": "web",
+      "routed_correctly": true,
+      "fell_back": false,
+      "recovered": false,
+      "faithfulness": 0.2317
+    },
+    {
+      "query": "current news about vector databases",
+      "expected_route": "web",
+      "expect_fallback": false,
+      "actual_route": "web",
+      "routed_correctly": true,
+      "fell_back": false,
+      "recovered": false,
+      "faithfulness": 0.1852
+    },
+    {
+      "query": "What is the capital of France?",
+      "expected_route": "semantic",
+      "expect_fallback": true,
+      "actual_route": "semantic",
+      "routed_correctly": true,
+      "fell_back": true,
+      "recovered": true,
+      "faithfulness": 0.2099
+    }
+  ]
+}
